@@ -2,302 +2,394 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Visa-Free Travel Overlap — HK × Taiwan</title>
   <meta name="description" content="Interactive world map showing visa-free travel destinations for both HKSAR and Taiwan passport holders." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #0b1120; color: #e2e8f0; font-family: 'DM Sans', sans-serif; }
+    body { background: #0b1120; color: #e2e8f0; font-family: 'DM Sans', sans-serif; overflow-x: hidden; }
     #root { min-height: 100vh; }
   </style>
 </head>
 <body>
   <div id="root"></div>
-
   <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-
   <script>
-    const { useState, useMemo, useEffect, createElement: h } = React;
+    const { useState, useMemo, useEffect, useRef, useCallback, createElement: h } = React;
 
-    const CATEGORIES = {
-      both: { color: "#34d399", label: "Both HK & Taiwan" },
+    const CAT = {
+      both:   { color: "#34d399", label: "Both HK & Taiwan" },
       hkOnly: { color: "#60a5fa", label: "HK only" },
       twOnly: { color: "#fbbf24", label: "Taiwan only" },
     };
 
-    const countries = [
-      {n:"Albania",la:41.15,ln:20.17,h:1,t:1},{n:"Andorra",la:42.55,ln:1.52,h:1,t:1},
-      {n:"Anguilla",la:18.22,ln:-63.07,h:1,t:1},{n:"Antigua & Barbuda",la:17.06,ln:-61.8,h:1,t:1},
-      {n:"Argentina",la:-38.42,ln:-63.62,h:1,t:1},{n:"Armenia",la:40.07,ln:45.04,h:1,t:1},
-      {n:"Aruba",la:12.51,ln:-69.97,h:1,t:1},{n:"Austria",la:47.52,ln:14.55,h:1,t:1},
-      {n:"Bahrain",la:26.03,ln:50.55,h:1,t:1},{n:"Belarus",la:53.71,ln:27.95,h:1,t:1},
-      {n:"Belgium",la:50.5,ln:4.47,h:1,t:1},{n:"Belize",la:17.19,ln:-88.5,h:1,t:1},
-      {n:"Benin",la:9.31,ln:2.32,h:1,t:1},{n:"Bermuda",la:32.32,ln:-64.76,h:1,t:1},
-      {n:"Bosnia & Herzegovina",la:43.92,ln:17.68,h:1,t:1},{n:"Botswana",la:-22.33,ln:24.68,h:1,t:1},
-      {n:"British Virgin Islands",la:18.43,ln:-64.63,h:1,t:1},{n:"Brunei",la:4.54,ln:114.73,h:1,t:1},
-      {n:"Bulgaria",la:42.73,ln:25.49,h:1,t:1},{n:"Burkina Faso",la:12.24,ln:-1.56,h:1,t:1},
-      {n:"Canada",la:56.13,ln:-106.35,h:1,t:1},{n:"Cape Verde",la:16,ln:-24.01,h:1,t:1},
-      {n:"Cayman Islands",la:19.51,ln:-80.57,h:1,t:1},{n:"Chile",la:-35.68,ln:-71.54,h:1,t:1},
-      {n:"Comoros",la:-11.88,ln:43.87,h:1,t:1},{n:"Cook Islands",la:-21.24,ln:-159.78,h:1,t:1},
-      {n:"Croatia",la:45.1,ln:15.2,h:1,t:1},{n:"Curaçao",la:12.17,ln:-68.98,h:1,t:1},
-      {n:"Cyprus",la:35.13,ln:33.43,h:1,t:1},{n:"Czech Republic",la:49.82,ln:15.47,h:1,t:1},
-      {n:"Denmark",la:56.26,ln:9.5,h:1,t:1},{n:"Djibouti",la:11.83,ln:42.59,h:1,t:1},
-      {n:"Dominica",la:15.41,ln:-61.37,h:1,t:1},{n:"Dominican Republic",la:18.74,ln:-70.16,h:1,t:1},
-      {n:"Ecuador",la:-1.83,ln:-78.18,h:1,t:1},{n:"Egypt",la:26.82,ln:30.8,h:1,t:1},
-      {n:"Estonia",la:58.6,ln:25.01,h:1,t:1},{n:"Ethiopia",la:9.15,ln:40.49,h:1,t:1},
-      {n:"Falkland Islands",la:-51.8,ln:-59.52,h:1,t:1},{n:"Faroe Islands",la:61.89,ln:-6.91,h:1,t:1},
-      {n:"Fiji",la:-17.71,ln:178.07,h:1,t:1},{n:"Finland",la:61.92,ln:25.75,h:1,t:1},
-      {n:"France",la:46.23,ln:2.21,h:1,t:1},{n:"French Guiana",la:3.93,ln:-53.13,h:1,t:1},
-      {n:"French Polynesia",la:-17.68,ln:-149.41,h:1,t:1},{n:"Germany",la:51.17,ln:10.45,h:1,t:1},
-      {n:"Gibraltar",la:36.14,ln:-5.35,h:1,t:1},{n:"Greece",la:39.07,ln:21.82,h:1,t:1},
-      {n:"Greenland",la:71.71,ln:-42.6,h:1,t:1},{n:"Guadeloupe",la:16.27,ln:-61.55,h:1,t:1},
-      {n:"Guam",la:13.44,ln:144.79,h:1,t:1},{n:"Hungary",la:47.16,ln:19.5,h:1,t:1},
-      {n:"Iceland",la:64.96,ln:-19.02,h:1,t:1},{n:"Indonesia",la:-0.79,ln:113.92,h:1,t:1},
-      {n:"Iran",la:32.43,ln:53.69,h:1,t:1},{n:"Ireland",la:53.14,ln:-7.69,h:1,t:1},
-      {n:"Israel",la:31.05,ln:34.85,h:1,t:1},{n:"Italy",la:41.87,ln:12.57,h:1,t:1},
-      {n:"Jamaica",la:18.11,ln:-77.3,h:1,t:1},{n:"Japan",la:36.2,ln:138.25,h:1,t:1},
-      {n:"Jordan",la:30.59,ln:36.24,h:1,t:1},{n:"Kazakhstan",la:48.02,ln:66.92,h:1,t:1},
-      {n:"Kenya",la:-0.02,ln:37.91,h:1,t:1},{n:"South Korea",la:35.91,ln:127.77,h:1,t:1},
-      {n:"Laos",la:19.86,ln:102.5,h:1,t:1},{n:"Latvia",la:56.88,ln:24.6,h:1,t:1},
-      {n:"Lebanon",la:33.85,ln:35.86,h:1,t:1},{n:"Lesotho",la:-29.61,ln:28.23,h:1,t:1},
-      {n:"Liechtenstein",la:47.17,ln:9.55,h:1,t:1},{n:"Lithuania",la:55.17,ln:23.88,h:1,t:1},
-      {n:"Luxembourg",la:49.82,ln:6.13,h:1,t:1},{n:"Madagascar",la:-18.77,ln:46.87,h:1,t:1},
-      {n:"Malawi",la:-13.25,ln:34.3,h:1,t:1},{n:"Malaysia",la:4.21,ln:101.98,h:1,t:1},
-      {n:"Maldives",la:3.2,ln:73.22,h:1,t:1},{n:"Malta",la:35.94,ln:14.38,h:1,t:1},
-      {n:"Martinique",la:14.64,ln:-61.02,h:1,t:1},{n:"Mauritania",la:21.01,ln:-10.94,h:1,t:1},
-      {n:"Mauritius",la:-20.35,ln:57.55,h:1,t:1},{n:"Mayotte",la:-12.83,ln:45.17,h:1,t:1},
-      {n:"Micronesia",la:7.43,ln:150.55,h:1,t:1},{n:"Monaco",la:43.73,ln:7.42,h:1,t:1},
-      {n:"Mongolia",la:46.86,ln:103.85,h:1,t:1},{n:"Montenegro",la:42.71,ln:19.37,h:1,t:1},
-      {n:"Montserrat",la:16.74,ln:-62.19,h:1,t:1},{n:"Mozambique",la:-18.67,ln:35.53,h:1,t:1},
-      {n:"Myanmar",la:21.91,ln:95.96,h:1,t:1},{n:"Namibia",la:-22.96,ln:18.49,h:1,t:1},
-      {n:"Nepal",la:28.39,ln:84.12,h:1,t:1},{n:"Netherlands",la:52.13,ln:5.29,h:1,t:1},
-      {n:"New Caledonia",la:-20.9,ln:165.62,h:1,t:1},{n:"New Zealand",la:-40.9,ln:174.89,h:1,t:1},
-      {n:"Niue",la:-19.05,ln:-169.87,h:1,t:1},{n:"North Macedonia",la:41.51,ln:21.75,h:1,t:1},
-      {n:"N. Mariana Islands",la:15.1,ln:145.67,h:1,t:1},{n:"Norway",la:60.47,ln:8.47,h:1,t:1},
-      {n:"Oman",la:21.47,ln:55.98,h:1,t:1},{n:"Palau",la:7.51,ln:134.58,h:1,t:1},
-      {n:"Panama",la:8.54,ln:-80.78,h:1,t:1},{n:"Peru",la:-9.19,ln:-75.02,h:1,t:1},
-      {n:"Philippines",la:12.88,ln:121.77,h:1,t:1},{n:"Poland",la:51.92,ln:19.15,h:1,t:1},
-      {n:"Portugal",la:39.4,ln:-8.22,h:1,t:1},{n:"Qatar",la:25.35,ln:51.18,h:1,t:1},
-      {n:"Réunion",la:-21.12,ln:55.54,h:1,t:1},{n:"Romania",la:45.94,ln:24.97,h:1,t:1},
-      {n:"Russia",la:61.52,ln:105.32,h:1,t:1},{n:"Rwanda",la:-1.94,ln:29.87,h:1,t:1},
-      {n:"Saint-Barthélemy",la:17.9,ln:-62.83,h:1,t:1},{n:"Saint-Martin (FR)",la:18.07,ln:-63.05,h:1,t:1},
-      {n:"St-Pierre & Miquelon",la:46.95,ln:-56.27,h:1,t:1},{n:"Samoa",la:-13.76,ln:-172.1,h:1,t:1},
-      {n:"San Marino",la:43.94,ln:12.46,h:1,t:1},{n:"Saudi Arabia",la:23.89,ln:45.08,h:1,t:1},
-      {n:"Seychelles",la:-4.68,ln:55.49,h:1,t:1},{n:"Singapore",la:1.35,ln:103.82,h:1,t:1},
-      {n:"Slovakia",la:48.67,ln:19.7,h:1,t:1},{n:"Slovenia",la:46.15,ln:14.99,h:1,t:1},
-      {n:"Spain",la:40.46,ln:-3.75,h:1,t:1},{n:"St. Helena",la:-15.97,ln:-5.71,h:1,t:1},
-      {n:"St. Kitts & Nevis",la:17.36,ln:-62.78,h:1,t:1},{n:"St. Lucia",la:13.91,ln:-60.98,h:1,t:1},
-      {n:"St. Maarten (NL)",la:18.04,ln:-63.07,h:1,t:1},{n:"St. Vincent",la:12.98,ln:-61.29,h:1,t:1},
-      {n:"Suriname",la:3.92,ln:-56.03,h:1,t:1},{n:"Sweden",la:60.13,ln:18.64,h:1,t:1},
-      {n:"Switzerland",la:46.82,ln:8.23,h:1,t:1},{n:"Tanzania",la:-6.37,ln:34.89,h:1,t:1},
-      {n:"Thailand",la:15.87,ln:100.99,h:1,t:1},{n:"Timor-Leste",la:-8.87,ln:125.73,h:1,t:1},
-      {n:"Togo",la:8.62,ln:1.21,h:1,t:1},{n:"Tuvalu",la:-7.11,ln:177.65,h:1,t:1},
-      {n:"Turkey",la:38.96,ln:35.24,h:1,t:1},{n:"Turks & Caicos",la:21.69,ln:-71.8,h:1,t:1},
-      {n:"Uganda",la:1.37,ln:32.29,h:1,t:1},{n:"Ukraine",la:48.38,ln:31.17,h:1,t:1},
-      {n:"UAE",la:23.42,ln:53.85,h:1,t:1},{n:"United Kingdom",la:55.38,ln:-3.44,h:1,t:1},
-      {n:"Uzbekistan",la:41.38,ln:64.59,h:1,t:1},{n:"Vanuatu",la:-15.38,ln:166.96,h:1,t:1},
-      {n:"Wallis & Futuna",la:-13.77,ln:-177.16,h:1,t:1},{n:"Zambia",la:-13.13,ln:28.28,h:1,t:1},
-      {n:"Zimbabwe",la:-19.02,ln:29.15,h:1,t:1},
+    // visa type: V=visa-free, A=VOA, E=eVisa, T=eTA
+    // stay: max stay string
+    const C = [
+      // BOTH — {n, la, ln, hv, hs, tv, ts}
+      // hv=HK visa type, hs=HK stay, tv=TW visa type, ts=TW stay
+      {n:"Albania",la:41.15,ln:20.17,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Andorra",la:42.55,ln:1.52,h:1,t:1,hv:"V",hs:"3 months",tv:"V",ts:"90 days"},
+      {n:"Anguilla",la:18.22,ln:-63.07,h:1,t:1,hv:"V",hs:"3 months",tv:"V",ts:"1 month"},
+      {n:"Antigua & Barbuda",la:17.06,ln:-61.8,h:1,t:1,hv:"V",hs:"30 days",tv:"V",ts:"30 days"},
+      {n:"Argentina",la:-38.42,ln:-63.62,h:1,t:1,hv:"V",hs:"90 days",tv:"E",ts:"90 days"},
+      {n:"Armenia",la:40.07,ln:45.04,h:1,t:1,hv:"V",hs:"180 days",tv:"E",ts:"120 days"},
+      {n:"Aruba",la:12.51,ln:-69.97,h:1,t:1,hv:"V",hs:"30 days",tv:"V",ts:"30 days"},
+      {n:"Austria",la:47.52,ln:14.55,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Bahrain",la:26.03,ln:50.55,h:1,t:1,hv:"A",hs:"14 days",tv:"A",ts:"1 month"},
+      {n:"Belarus",la:53.71,ln:27.95,h:1,t:1,hv:"V",hs:"30 days",tv:"A",ts:"30 days"},
+      {n:"Belgium",la:50.5,ln:4.47,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Belize",la:17.19,ln:-88.5,h:1,t:1,hv:"V",hs:"30 days",tv:"V",ts:"90 days"},
+      {n:"Benin",la:9.31,ln:2.32,h:1,t:1,hv:"V",hs:"14 days",tv:"E",ts:"30 days"},
+      {n:"Bermuda",la:32.32,ln:-64.76,h:1,t:1,hv:"V",hs:"—",tv:"V",ts:"90 days"},
+      {n:"Bosnia & Herzegovina",la:43.92,ln:17.68,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Botswana",la:-22.33,ln:24.68,h:1,t:1,hv:"V",hs:"90 days",tv:"E",ts:"—"},
+      {n:"British Virgin Islands",la:18.43,ln:-64.63,h:1,t:1,hv:"V",hs:"1 month",tv:"V",ts:"1 month"},
+      {n:"Brunei",la:4.54,ln:114.73,h:1,t:1,hv:"V",hs:"14 days",tv:"V",ts:"14 days"},
+      {n:"Bulgaria",la:42.73,ln:25.49,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Burkina Faso",la:12.24,ln:-1.56,h:1,t:1,hv:"V",hs:"14 days",tv:"E",ts:"30–90 days"},
+      {n:"Canada",la:56.13,ln:-106.35,h:1,t:1,hv:"V",hs:"6 months",tv:"V",ts:"180 days"},
+      {n:"Cape Verde",la:16,ln:-24.01,h:1,t:1,hv:"A",hs:"1 month",tv:"A",ts:"30 days"},
+      {n:"Cayman Islands",la:19.51,ln:-80.57,h:1,t:1,hv:"V",hs:"30 days",tv:"V",ts:"30 days"},
+      {n:"Chile",la:-35.68,ln:-71.54,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Comoros",la:-11.88,ln:43.87,h:1,t:1,hv:"A",hs:"45 days",tv:"A",ts:"45 days"},
+      {n:"Cook Islands",la:-21.24,ln:-159.78,h:1,t:1,hv:"A",hs:"31 days",tv:"V",ts:"31 days"},
+      {n:"Croatia",la:45.1,ln:15.2,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Curaçao",la:12.17,ln:-68.98,h:1,t:1,hv:"V",hs:"3 months",tv:"V",ts:"30 days"},
+      {n:"Cyprus",la:35.13,ln:33.43,h:1,t:1,hv:"V",hs:"3 months",tv:"V",ts:"90 days"},
+      {n:"Czech Republic",la:49.82,ln:15.47,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Denmark",la:56.26,ln:9.5,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Djibouti",la:11.83,ln:42.59,h:1,t:1,hv:"V",hs:"14 days",tv:"E",ts:"90 days"},
+      {n:"Dominica",la:15.41,ln:-61.37,h:1,t:1,hv:"V",hs:"21 days",tv:"V",ts:"3 months"},
+      {n:"Dominican Republic",la:18.74,ln:-70.16,h:1,t:1,hv:"V",hs:"30 days",tv:"V",ts:"30 days"},
+      {n:"Ecuador",la:-1.83,ln:-78.18,h:1,t:1,hv:"V",hs:"90 days",tv:"E",ts:"90 days"},
+      {n:"Egypt",la:26.82,ln:30.8,h:1,t:1,hv:"V",hs:"90 days",tv:"A",ts:"30 days"},
+      {n:"Estonia",la:58.6,ln:25.01,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Ethiopia",la:9.15,ln:40.49,h:1,t:1,hv:"A",hs:"3 months",tv:"E",ts:"—"},
+      {n:"Falkland Islands",la:-51.8,ln:-59.52,h:1,t:1,hv:"V",hs:"4 months",tv:"V",ts:"12 months"},
+      {n:"Faroe Islands",la:61.89,ln:-6.91,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Fiji",la:-17.71,ln:178.07,h:1,t:1,hv:"V",hs:"6 months",tv:"V",ts:"120 days"},
+      {n:"Finland",la:61.92,ln:25.75,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"France",la:46.23,ln:2.21,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"French Guiana",la:3.93,ln:-53.13,h:1,t:1,hv:"V",hs:"3 months",tv:"V",ts:"90 days"},
+      {n:"French Polynesia",la:-17.68,ln:-149.41,h:1,t:1,hv:"V",hs:"3 months",tv:"V",ts:"90 days"},
+      {n:"Germany",la:51.17,ln:10.45,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Gibraltar",la:36.14,ln:-5.35,h:1,t:1,hv:"V",hs:"1 month",tv:"V",ts:"90 days"},
+      {n:"Greece",la:39.07,ln:21.82,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Greenland",la:71.71,ln:-42.6,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Guadeloupe",la:16.27,ln:-61.55,h:1,t:1,hv:"V",hs:"3 months",tv:"V",ts:"90 days"},
+      {n:"Guam",la:13.44,ln:144.79,h:1,t:1,hv:"V",hs:"45 days",tv:"V",ts:"45/90 days"},
+      {n:"Hungary",la:47.16,ln:19.5,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Iceland",la:64.96,ln:-19.02,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Indonesia",la:-0.79,ln:113.92,h:1,t:1,hv:"V",hs:"30 days",tv:"A",ts:"30 days"},
+      {n:"Iran",la:32.43,ln:53.69,h:1,t:1,hv:"V",hs:"21 days",tv:"A",ts:"90 days"},
+      {n:"Ireland",la:53.14,ln:-7.69,h:1,t:1,hv:"V",hs:"3 months",tv:"V",ts:"90 days"},
+      {n:"Israel",la:31.05,ln:34.85,h:1,t:1,hv:"V",hs:"3 months",tv:"V",ts:"90 days"},
+      {n:"Italy",la:41.87,ln:12.57,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Jamaica",la:18.11,ln:-77.3,h:1,t:1,hv:"V",hs:"30 days",tv:"A",ts:"30 days"},
+      {n:"Japan",la:36.2,ln:138.25,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Jordan",la:30.59,ln:36.24,h:1,t:1,hv:"V",hs:"14 days",tv:"A",ts:"30 days"},
+      {n:"Kazakhstan",la:48.02,ln:66.92,h:1,t:1,hv:"V",hs:"14 days",tv:"E",ts:"30 days"},
+      {n:"Kenya",la:-0.02,ln:37.91,h:1,t:1,hv:"T",hs:"—",tv:"T",ts:"90 days"},
+      {n:"South Korea",la:35.91,ln:127.77,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Laos",la:19.86,ln:102.5,h:1,t:1,hv:"A",hs:"30 days",tv:"A",ts:"14–30 days"},
+      {n:"Latvia",la:56.88,ln:24.6,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Lebanon",la:33.85,ln:35.86,h:1,t:1,hv:"A",hs:"3 months",tv:"A",ts:"30 days"},
+      {n:"Lesotho",la:-29.61,ln:28.23,h:1,t:1,hv:"V",hs:"—",tv:"E",ts:"—"},
+      {n:"Liechtenstein",la:47.17,ln:9.55,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Lithuania",la:55.17,ln:23.88,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Luxembourg",la:49.82,ln:6.13,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Madagascar",la:-18.77,ln:46.87,h:1,t:1,hv:"A",hs:"90 days",tv:"A",ts:"30 days"},
+      {n:"Malawi",la:-13.25,ln:34.3,h:1,t:1,hv:"V",hs:"—",tv:"E",ts:"—"},
+      {n:"Malaysia",la:4.21,ln:101.98,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"30 days"},
+      {n:"Maldives",la:3.2,ln:73.22,h:1,t:1,hv:"A",hs:"—",tv:"A",ts:"30 days"},
+      {n:"Malta",la:35.94,ln:14.38,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Martinique",la:14.64,ln:-61.02,h:1,t:1,hv:"V",hs:"3 months",tv:"V",ts:"90 days"},
+      {n:"Mauritania",la:21.01,ln:-10.94,h:1,t:1,hv:"A",hs:"—",tv:"E",ts:"—"},
+      {n:"Mauritius",la:-20.35,ln:57.55,h:1,t:1,hv:"V",hs:"90 days",tv:"A",ts:"—"},
+      {n:"Mayotte",la:-12.83,ln:45.17,h:1,t:1,hv:"V",hs:"3 months",tv:"V",ts:"90 days"},
+      {n:"Micronesia",la:7.43,ln:150.55,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"30 days"},
+      {n:"Monaco",la:43.73,ln:7.42,h:1,t:1,hv:"V",hs:"3 months",tv:"V",ts:"90 days"},
+      {n:"Mongolia",la:46.86,ln:103.85,h:1,t:1,hv:"V",hs:"14 days",tv:"E",ts:"30 days"},
+      {n:"Montenegro",la:42.71,ln:19.37,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Montserrat",la:16.74,ln:-62.19,h:1,t:1,hv:"V",hs:"3 months",tv:"V",ts:"6 months"},
+      {n:"Mozambique",la:-18.67,ln:35.53,h:1,t:1,hv:"A",hs:"30 days",tv:"E",ts:"—"},
+      {n:"Myanmar",la:21.91,ln:95.96,h:1,t:1,hv:"A",hs:"30 days",tv:"E",ts:"—"},
+      {n:"Namibia",la:-22.96,ln:18.49,h:1,t:1,hv:"V",hs:"—",tv:"E",ts:"—"},
+      {n:"Nepal",la:28.39,ln:84.12,h:1,t:1,hv:"A",hs:"—",tv:"A",ts:"30 days"},
+      {n:"Netherlands",la:52.13,ln:5.29,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"New Caledonia",la:-20.9,ln:165.62,h:1,t:1,hv:"V",hs:"3 months",tv:"V",ts:"90 days"},
+      {n:"New Zealand",la:-40.9,ln:174.89,h:1,t:1,hv:"V",hs:"3 months",tv:"V",ts:"90 days"},
+      {n:"Niue",la:-19.05,ln:-169.87,h:1,t:1,hv:"A",hs:"30 days",tv:"V",ts:"30 days"},
+      {n:"North Macedonia",la:41.51,ln:21.75,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"N. Mariana Islands",la:15.1,ln:145.67,h:1,t:1,hv:"V",hs:"45 days",tv:"V",ts:"45 days"},
+      {n:"Norway",la:60.47,ln:8.47,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Oman",la:21.47,ln:55.98,h:1,t:1,hv:"V",hs:"14 days",tv:"V",ts:"14 days"},
+      {n:"Palau",la:7.51,ln:134.58,h:1,t:1,hv:"A",hs:"30 days",tv:"V",ts:"90 days"},
+      {n:"Panama",la:8.54,ln:-80.78,h:1,t:1,hv:"V",hs:"30 days",tv:"V",ts:"90 days"},
+      {n:"Peru",la:-9.19,ln:-75.02,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Philippines",la:12.88,ln:121.77,h:1,t:1,hv:"V",hs:"14 days",tv:"V",ts:"14 days"},
+      {n:"Poland",la:51.92,ln:19.15,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Portugal",la:39.4,ln:-8.22,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Qatar",la:25.35,ln:51.18,h:1,t:1,hv:"V",hs:"30 days",tv:"A",ts:"30 days"},
+      {n:"Réunion",la:-21.12,ln:55.54,h:1,t:1,hv:"V",hs:"3 months",tv:"V",ts:"90 days"},
+      {n:"Romania",la:45.94,ln:24.97,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Russia",la:61.52,ln:105.32,h:1,t:1,hv:"V",hs:"14 days",tv:"E",ts:"30 days"},
+      {n:"Rwanda",la:-1.94,ln:29.87,h:1,t:1,hv:"V",hs:"1 month",tv:"A",ts:"—"},
+      {n:"Saint-Barthélemy",la:17.9,ln:-62.83,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Saint-Martin (FR)",la:18.07,ln:-63.05,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"St-Pierre & Miquelon",la:46.95,ln:-56.27,h:1,t:1,hv:"V",hs:"3 months",tv:"V",ts:"90 days"},
+      {n:"Samoa",la:-13.76,ln:-172.1,h:1,t:1,hv:"V",hs:"60 days",tv:"V",ts:"60 days"},
+      {n:"San Marino",la:43.94,ln:12.46,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Saudi Arabia",la:23.89,ln:45.08,h:1,t:1,hv:"A",hs:"30 days",tv:"E",ts:"90 days"},
+      {n:"Seychelles",la:-4.68,ln:55.49,h:1,t:1,hv:"V",hs:"90 days",tv:"A",ts:"30 days"},
+      {n:"Singapore",la:1.35,ln:103.82,h:1,t:1,hv:"V",hs:"30 days",tv:"V",ts:"30 days"},
+      {n:"Slovakia",la:48.67,ln:19.7,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Slovenia",la:46.15,ln:14.99,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Spain",la:40.46,ln:-3.75,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"St. Helena",la:-15.97,ln:-5.71,h:1,t:1,hv:"V",hs:"3 months",tv:"E",ts:"—"},
+      {n:"St. Kitts & Nevis",la:17.36,ln:-62.78,h:1,t:1,hv:"V",hs:"3 months",tv:"V",ts:"90 days"},
+      {n:"St. Lucia",la:13.91,ln:-60.98,h:1,t:1,hv:"V",hs:"28 days",tv:"V",ts:"42 days"},
+      {n:"St. Maarten (NL)",la:18.04,ln:-63.07,h:1,t:1,hv:"V",hs:"3 months",tv:"V",ts:"90 days"},
+      {n:"St. Vincent",la:12.98,ln:-61.29,h:1,t:1,hv:"V",hs:"—",tv:"V",ts:"30 days"},
+      {n:"Suriname",la:3.92,ln:-56.03,h:1,t:1,hv:"V",hs:"—",tv:"E",ts:"—"},
+      {n:"Sweden",la:60.13,ln:18.64,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Switzerland",la:46.82,ln:8.23,h:1,t:1,hv:"V",hs:"90 days",tv:"V",ts:"90 days"},
+      {n:"Tanzania",la:-6.37,ln:34.89,h:1,t:1,hv:"V",hs:"3 months",tv:"A",ts:"90 days"},
+      {n:"Thailand",la:15.87,ln:100.99,h:1,t:1,hv:"V",hs:"60 days",tv:"V",ts:"60 days"},
+      {n:"Timor-Leste",la:-8.87,ln:125.73,h:1,t:1,hv:"A",hs:"14 days",tv:"A",ts:"30 days"},
+      {n:"Togo",la:8.62,ln:1.21,h:1,t:1,hv:"A",hs:"1 month",tv:"E",ts:"15+ days"},
+      {n:"Tuvalu",la:-7.11,ln:177.65,h:1,t:1,hv:"A",hs:"1 month",tv:"V",ts:"90 days"},
+      {n:"Turkey",la:38.96,ln:35.24,h:1,t:1,hv:"V",hs:"90 days",tv:"E",ts:"30 days"},
+      {n:"Turks & Caicos",la:21.69,ln:-71.8,h:1,t:1,hv:"V",hs:"30 days",tv:"V",ts:"30 days"},
+      {n:"Uganda",la:1.37,ln:32.29,h:1,t:1,hv:"V",hs:"90 days",tv:"E",ts:"—"},
+      {n:"Ukraine",la:48.38,ln:31.17,h:1,t:1,hv:"V",hs:"14 days",tv:"E",ts:"30 days"},
+      {n:"UAE",la:23.42,ln:53.85,h:1,t:1,hv:"V",hs:"30 days",tv:"E",ts:"96 hrs transit"},
+      {n:"United Kingdom",la:55.38,ln:-3.44,h:1,t:1,hv:"V",hs:"6 months",tv:"V",ts:"6 months"},
+      {n:"Uzbekistan",la:41.38,ln:64.59,h:1,t:1,hv:"V",hs:"10 days",tv:"A",ts:"—"},
+      {n:"Vanuatu",la:-15.38,ln:166.96,h:1,t:1,hv:"V",hs:"4 months",tv:"A",ts:"120 days"},
+      {n:"Wallis & Futuna",la:-13.77,ln:-177.16,h:1,t:1,hv:"V",hs:"3 months",tv:"V",ts:"90 days"},
+      {n:"Zambia",la:-13.13,ln:28.28,h:1,t:1,hv:"V",hs:"—",tv:"V",ts:"90 days"},
+      {n:"Zimbabwe",la:-19.02,ln:29.15,h:1,t:1,hv:"V",hs:"6 months",tv:"E",ts:"—"},
       // HK only
-      {n:"Algeria",la:28.03,ln:1.66,h:1,t:0},{n:"Angola",la:-11.2,ln:17.87,h:1,t:0},
-      {n:"Azerbaijan",la:40.14,ln:47.58,h:1,t:0},{n:"Bahamas",la:25.03,ln:-77.4,h:1,t:0},
-      {n:"Barbados",la:13.19,ln:-59.54,h:1,t:0},{n:"Bolivia",la:-16.29,ln:-63.59,h:1,t:0},
-      {n:"Brazil",la:-14.24,ln:-51.93,h:1,t:0},{n:"Burundi",la:-3.37,ln:29.92,h:1,t:0},
-      {n:"Caribbean Netherlands",la:12.2,ln:-68.26,h:1,t:0},{n:"Colombia",la:4.57,ln:-74.3,h:1,t:0},
-      {n:"Georgia",la:42.32,ln:43.36,h:1,t:0},{n:"Grenada",la:12.26,ln:-61.6,h:1,t:0},
-      {n:"Guyana",la:4.86,ln:-58.93,h:1,t:0},{n:"Kiribati",la:1.87,ln:-157.36,h:1,t:0},
-      {n:"Kuwait",la:29.31,ln:47.48,h:1,t:0},{n:"Kyrgyzstan",la:41.2,ln:74.77,h:1,t:0},
-      {n:"Mali",la:17.57,ln:-4,h:1,t:0},{n:"Mexico",la:23.63,ln:-102.55,h:1,t:0},
-      {n:"Moldova",la:47.41,ln:28.37,h:1,t:0},{n:"Morocco",la:31.79,ln:-7.09,h:1,t:0},
-      {n:"Niger",la:17.61,ln:8.08,h:1,t:0},{n:"Papua New Guinea",la:-6.31,ln:143.96,h:1,t:0},
-      {n:"Serbia",la:44.02,ln:21.01,h:1,t:0},{n:"South Africa",la:-30.56,ln:22.94,h:1,t:0},
-      {n:"Tonga",la:-21.18,ln:-175.2,h:1,t:0},{n:"Trinidad & Tobago",la:10.69,ln:-61.22,h:1,t:0},
-      {n:"Tunisia",la:33.89,ln:9.54,h:1,t:0},{n:"Uruguay",la:-32.52,ln:-55.77,h:1,t:0},
-      {n:"Venezuela",la:6.42,ln:-66.59,h:1,t:0},{n:"Yemen",la:15.55,ln:48.52,h:1,t:0},
+      {n:"Algeria",la:28.03,ln:1.66,h:1,t:0,hv:"V",hs:"14 days"},
+      {n:"Angola",la:-11.2,ln:17.87,h:1,t:0,hv:"V",hs:"30 days"},
+      {n:"Azerbaijan",la:40.14,ln:47.58,h:1,t:0,hv:"V",hs:"30 days"},
+      {n:"Bahamas",la:25.03,ln:-77.4,h:1,t:0,hv:"V",hs:"3 months"},
+      {n:"Barbados",la:13.19,ln:-59.54,h:1,t:0,hv:"V",hs:"90 days"},
+      {n:"Bolivia",la:-16.29,ln:-63.59,h:1,t:0,hv:"A",hs:"30 days"},
+      {n:"Brazil",la:-14.24,ln:-51.93,h:1,t:0,hv:"V",hs:"90 days"},
+      {n:"Burundi",la:-3.37,ln:29.92,h:1,t:0,hv:"V",hs:"14 days"},
+      {n:"Caribbean Netherlands",la:12.2,ln:-68.26,h:1,t:0,hv:"V",hs:"3 months"},
+      {n:"Colombia",la:4.57,ln:-74.3,h:1,t:0,hv:"V",hs:"180 days"},
+      {n:"Georgia",la:42.32,ln:43.36,h:1,t:0,hv:"V",hs:"30 days"},
+      {n:"Grenada",la:12.26,ln:-61.6,h:1,t:0,hv:"V",hs:"90 days"},
+      {n:"Guyana",la:4.86,ln:-58.93,h:1,t:0,hv:"A",hs:"1 month"},
+      {n:"Kiribati",la:1.87,ln:-157.36,h:1,t:0,hv:"V",hs:"3 months"},
+      {n:"Kuwait",la:29.31,ln:47.48,h:1,t:0,hv:"A",hs:"3 months"},
+      {n:"Kyrgyzstan",la:41.2,ln:74.77,h:1,t:0,hv:"V",hs:"30 days"},
+      {n:"Mali",la:17.57,ln:-4,h:1,t:0,hv:"V",hs:"—"},
+      {n:"Mexico",la:23.63,ln:-102.55,h:1,t:0,hv:"V",hs:"90 days"},
+      {n:"Moldova",la:47.41,ln:28.37,h:1,t:0,hv:"V",hs:"90 days"},
+      {n:"Morocco",la:31.79,ln:-7.09,h:1,t:0,hv:"V",hs:"30 days"},
+      {n:"Niger",la:17.61,ln:8.08,h:1,t:0,hv:"V",hs:"14 days"},
+      {n:"Papua New Guinea",la:-6.31,ln:143.96,h:1,t:0,hv:"V",hs:"—"},
+      {n:"Serbia",la:44.02,ln:21.01,h:1,t:0,hv:"V",hs:"14 days"},
+      {n:"South Africa",la:-30.56,ln:22.94,h:1,t:0,hv:"V",hs:"30 days"},
+      {n:"Tonga",la:-21.18,ln:-175.2,h:1,t:0,hv:"A",hs:"1 month"},
+      {n:"Trinidad & Tobago",la:10.69,ln:-61.22,h:1,t:0,hv:"V",hs:"—"},
+      {n:"Tunisia",la:33.89,ln:9.54,h:1,t:0,hv:"V",hs:"3 months"},
+      {n:"Uruguay",la:-32.52,ln:-55.77,h:1,t:0,hv:"V",hs:"90 days"},
+      {n:"Venezuela",la:6.42,ln:-66.59,h:1,t:0,hv:"V",hs:"90 days"},
+      {n:"Yemen",la:15.55,ln:48.52,h:1,t:0,hv:"V",hs:"30 days"},
       // Taiwan only
-      {n:"Australia",la:-25.27,ln:133.78,h:0,t:1},{n:"Bhutan",la:27.51,ln:90.43,h:0,t:1},
-      {n:"Cambodia",la:12.57,ln:104.99,h:0,t:1},{n:"Costa Rica",la:9.75,ln:-83.75,h:0,t:1},
-      {n:"Eswatini",la:-26.52,ln:31.47,h:0,t:1},{n:"Gambia",la:13.44,ln:-15.31,h:0,t:1},
-      {n:"Guatemala",la:15.78,ln:-90.23,h:0,t:1},{n:"Haiti",la:18.97,ln:-72.29,h:0,t:1},
-      {n:"Honduras",la:15.2,ln:-86.24,h:0,t:1},{n:"India",la:20.59,ln:78.96,h:0,t:1},
-      {n:"Kosovo",la:42.6,ln:20.9,h:0,t:1},{n:"Marshall Islands",la:7.13,ln:171.18,h:0,t:1},
-      {n:"Paraguay",la:-23.44,ln:-58.44,h:0,t:1},{n:"Sri Lanka",la:7.87,ln:80.77,h:0,t:1},
-      {n:"Tajikistan",la:38.86,ln:71.28,h:0,t:1},{n:"United States",la:37.09,ln:-95.71,h:0,t:1},
-      {n:"Vietnam",la:14.06,ln:108.28,h:0,t:1},
-    ].map(c => ({ name: c.n, lat: c.la, lng: c.ln, hk: !!c.h, tw: !!c.t }));
+      {n:"Australia",la:-25.27,ln:133.78,h:0,t:1,tv:"E",ts:"3 months"},
+      {n:"Bhutan",la:27.51,ln:90.43,h:0,t:1,tv:"E",ts:"90 days"},
+      {n:"Cambodia",la:12.57,ln:104.99,h:0,t:1,tv:"A",ts:"30 days"},
+      {n:"Costa Rica",la:9.75,ln:-83.75,h:0,t:1,tv:"V",ts:"30 days"},
+      {n:"Eswatini",la:-26.52,ln:31.47,h:0,t:1,tv:"V",ts:"90 days"},
+      {n:"Gambia",la:13.44,ln:-15.31,h:0,t:1,tv:"V",ts:"—"},
+      {n:"Guatemala",la:15.78,ln:-90.23,h:0,t:1,tv:"V",ts:"30–90 days"},
+      {n:"Haiti",la:18.97,ln:-72.29,h:0,t:1,tv:"V",ts:"90 days"},
+      {n:"Honduras",la:15.2,ln:-86.24,h:0,t:1,tv:"V",ts:"90 days"},
+      {n:"India",la:20.59,ln:78.96,h:0,t:1,tv:"E",ts:"—"},
+      {n:"Kosovo",la:42.6,ln:20.9,h:0,t:1,tv:"V",ts:"90 days"},
+      {n:"Marshall Islands",la:7.13,ln:171.18,h:0,t:1,tv:"V",ts:"90 days"},
+      {n:"Paraguay",la:-23.44,ln:-58.44,h:0,t:1,tv:"V",ts:"90 days"},
+      {n:"Sri Lanka",la:7.87,ln:80.77,h:0,t:1,tv:"A",ts:"30 days"},
+      {n:"Tajikistan",la:38.86,ln:71.28,h:0,t:1,tv:"A",ts:"45 days"},
+      {n:"United States",la:37.09,ln:-95.71,h:0,t:1,tv:"V",ts:"90 days"},
+      {n:"Vietnam",la:14.06,ln:108.28,h:0,t:1,tv:"E",ts:"90 days"},
+    ].map(c => ({ name:c.n, lat:c.la, lng:c.ln, hk:!!c.h, tw:!!c.t, hv:c.hv||null, hs:c.hs||null, tv:c.tv||null, ts:c.ts||null }));
 
-    function getCategory(c) {
-      if (c.hk && c.tw) return "both";
-      if (c.hk) return "hkOnly";
-      return "twOnly";
-    }
+    const countries = C;
+    const VISA_LABELS = { V:"Visa-free", A:"Visa on arrival", E:"eVisa", T:"eTA" };
+    const VISA_COLORS = { V:"#34d399", A:"#a78bfa", E:"#38bdf8", T:"#fb923c" };
 
-    const TOPO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
+    function getCat(c) { return c.hk && c.tw ? "both" : c.hk ? "hkOnly" : "twOnly"; }
+
+    const TOPO = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
     function App() {
       const [filter, setFilter] = useState("all");
       const [selected, setSelected] = useState(null);
-      const [searchTerm, setSearchTerm] = useState("");
-      const [worldGeo, setWorldGeo] = useState(null);
+      const [search, setSearch] = useState("");
+      const [geo, setGeo] = useState(null);
+      const [transform, setTransform] = useState({ k:1, x:0, y:0 });
+      const svgRef = useRef(null);
+      const gRef = useRef(null);
 
       const W = 960, H = 500;
 
+      // Load topo
       useEffect(() => {
-        fetch(TOPO_URL).then(r => r.json()).then(topo => {
-          const obj = topo.objects.countries, arcs = topo.arcs, tr = topo.transform;
-          function decodeArc(idx) {
-            const rev = idx < 0, arc = arcs[rev ? ~idx : idx], pts = [];
-            let x = 0, y = 0;
-            for (const [dx, dy] of arc) { x += dx; y += dy; pts.push([x * tr.scale[0] + tr.translate[0], y * tr.scale[1] + tr.translate[1]]); }
-            if (rev) pts.reverse(); return pts;
-          }
-          function decodeRing(ring) { return ring.flatMap(i => decodeArc(i)); }
-          function decodeGeom(g) {
-            if (g.type === "Polygon") return { type: "Polygon", coordinates: g.arcs.map(decodeRing) };
-            if (g.type === "MultiPolygon") return { type: "MultiPolygon", coordinates: g.arcs.map(p => p.map(decodeRing)) };
-            return g;
-          }
-          setWorldGeo({ type: "FeatureCollection", features: obj.geometries.map(g => ({ type: "Feature", properties: g.properties || {}, geometry: decodeGeom(g) })) });
-        }).catch(() => {});
+        fetch(TOPO).then(r=>r.json()).then(topo => {
+          const obj=topo.objects.countries, arcs=topo.arcs, tr=topo.transform;
+          function da(idx){const rev=idx<0,arc=arcs[rev?~idx:idx],pts=[];let x=0,y=0;for(const[dx,dy]of arc){x+=dx;y+=dy;pts.push([x*tr.scale[0]+tr.translate[0],y*tr.scale[1]+tr.translate[1]]);}if(rev)pts.reverse();return pts;}
+          function dr(ring){return ring.flatMap(i=>da(i));}
+          function dg(g){if(g.type==="Polygon")return{type:"Polygon",coordinates:g.arcs.map(dr)};if(g.type==="MultiPolygon")return{type:"MultiPolygon",coordinates:g.arcs.map(p=>p.map(dr))};return g;}
+          setGeo({type:"FeatureCollection",features:obj.geometries.map(g=>({type:"Feature",properties:g.properties||{},geometry:dg(g)}))});
+        }).catch(()=>{});
       }, []);
 
-      const projection = useMemo(() => d3.geoNaturalEarth1().scale(160).translate([W / 2, H / 2]), []);
-      const pathGen = useMemo(() => d3.geoPath().projection(projection), [projection]);
+      // D3 zoom on SVG
+      useEffect(() => {
+        if (!svgRef.current) return;
+        const svg = d3.select(svgRef.current);
+        const zoom = d3.zoom()
+          .scaleExtent([1, 8])
+          .on("zoom", (e) => {
+            setTransform({ k: e.transform.k, x: e.transform.x, y: e.transform.y });
+          });
+        svg.call(zoom);
+        // double-tap to reset
+        svg.on("dblclick.zoom", () => {
+          svg.transition().duration(400).call(zoom.transform, d3.zoomIdentity);
+        });
+        return () => { svg.on(".zoom", null); };
+      }, []);
+
+      const proj = useMemo(() => d3.geoNaturalEarth1().scale(160).translate([W/2, H/2]), []);
+      const path = useMemo(() => d3.geoPath().projection(proj), [proj]);
 
       const filtered = useMemo(() => {
-        let list = countries;
-        if (filter !== "all") list = list.filter(c => getCategory(c) === filter);
-        if (searchTerm) list = list.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()));
-        return list;
-      }, [filter, searchTerm]);
+        let l = countries;
+        if (filter !== "all") l = l.filter(c => getCat(c) === filter);
+        if (search) l = l.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
+        return l;
+      }, [filter, search]);
 
       const counts = useMemo(() => {
-        const both = countries.filter(c => c.hk && c.tw).length;
-        const hkOnly = countries.filter(c => c.hk && !c.tw).length;
-        const twOnly = countries.filter(c => !c.hk && c.tw).length;
-        return { both, hkOnly, twOnly, total: countries.length };
+        const b = countries.filter(c=>c.hk&&c.tw).length;
+        const ho = countries.filter(c=>c.hk&&!c.tw).length;
+        const to = countries.filter(c=>!c.hk&&c.tw).length;
+        return { b, ho, to, all: countries.length };
       }, []);
 
       const stats = [
-        { label: "Overlap", value: counts.both, color: "#34d399", key: "both" },
-        { label: "HK only", value: counts.hkOnly, color: "#60a5fa", key: "hkOnly" },
-        { label: "TW only", value: counts.twOnly, color: "#fbbf24", key: "twOnly" },
-        { label: "Total", value: counts.total, color: "#94a3b8", key: "all" },
+        {l:"Overlap",v:counts.b,c:"#34d399",k:"both"},
+        {l:"HK only",v:counts.ho,c:"#60a5fa",k:"hkOnly"},
+        {l:"TW only",v:counts.to,c:"#fbbf24",k:"twOnly"},
+        {l:"Total",v:counts.all,c:"#94a3b8",k:"all"},
       ];
 
-      const spherePath = pathGen({ type: "Sphere" });
-      const graticulePath = pathGen(d3.geoGraticule10());
+      const sel = selected ? countries.find(c => c.name === selected) : null;
+      const selCat = sel ? getCat(sel) : null;
 
-      // Build land paths
-      const landPaths = worldGeo ? worldGeo.features.map((f, i) =>
-        h("path", { key: i, d: pathGen(f), fill: "#1a2744", stroke: "#2a3a5c", strokeWidth: 0.4 })
-      ) : [];
+      const tStr = "translate("+transform.x+","+transform.y+") scale("+transform.k+")";
 
-      // Build dots
-      const dotLayers = ["hkOnly", "twOnly", "both"].flatMap(cat =>
-        filtered.filter(c => getCategory(c) === cat).map(c => {
-          const pos = projection([c.lng, c.lat]);
-          if (!pos) return null;
-          const [x, y] = pos;
-          const col = CATEGORIES[cat].color;
-          const isSel = selected === c.name;
-          const r = isSel ? 6.5 : 4.5;
-          const labelX = x > W - 150 ? x - c.name.length * 7 - 24 : x + 10;
-          const textX = x > W - 150 ? x - c.name.length * 7 - 15 : x + 19;
-          return h("g", { key: c.name, onClick: () => setSelected(selected === c.name ? null : c.name), style: { cursor: "pointer" } },
-            h("circle", { cx: x, cy: y, r: r + 6, fill: col, opacity: isSel ? 0.2 : 0.1 }),
-            h("circle", { cx: x, cy: y, r, fill: col, stroke: isSel ? "#fff" : "#0b1120", strokeWidth: isSel ? 1.5 : 0.6, opacity: 0.95 }),
-            isSel ? h("g", null,
-              h("rect", { x: labelX, y: y - 20, width: c.name.length * 7 + 18, height: 24, rx: 6, fill: "#0f1b30", stroke: col, strokeWidth: 1 }),
-              h("text", { x: textX, y: y - 4, fill: "#f1f5f9", fontSize: 11, fontFamily: "'DM Sans', sans-serif", fontWeight: 500 }, c.name)
-            ) : null
-          );
-        })
-      );
+      // Visa badge
+      function badge(type, stay, label) {
+        if (!type) return h("div",{style:{color:"#475569",fontSize:12}},"Visa required");
+        const col = VISA_COLORS[type] || "#94a3b8";
+        return h("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:4}},
+          h("span",{style:{background:col+"22",color:col,border:"1px solid "+col+"44",borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:600}},VISA_LABELS[type]||type),
+          stay && stay !== "—" ? h("span",{style:{color:"#94a3b8",fontSize:12}},stay) : null
+        );
+      }
 
-      return h("div", { style: { minHeight: "100vh", background: "#0b1120", color: "#e2e8f0", fontFamily: "'DM Sans', sans-serif", padding: "20px 12px" } },
-        h("div", { style: { maxWidth: 960, margin: "0 auto" } },
-
-          // Title
-          h("h1", { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: "clamp(17px, 4vw, 26px)", fontWeight: 700, margin: "0 0 2px", color: "#34d399" } }, "🌏 Visa-Free Travel Overlap"),
-          h("p", { style: { fontSize: 12, color: "#475569", margin: "0 0 14px" } }, "HKSAR Passport × Taiwan Passport — visa-free, VOA & eVisa"),
+      return h("div",{style:{minHeight:"100vh",background:"#0b1120",color:"#e2e8f0",fontFamily:"'DM Sans',sans-serif",padding:"20px 12px"}},
+        h("div",{style:{maxWidth:960,margin:"0 auto"}},
+          h("h1",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:"clamp(17px,4vw,26px)",fontWeight:700,margin:"0 0 2px",color:"#34d399"}},"🌏 Visa-Free Travel Overlap"),
+          h("p",{style:{fontSize:12,color:"#475569",margin:"0 0 14px"}},"HKSAR Passport × Taiwan Passport — visa-free, VOA & eVisa"),
 
           // Stats
-          h("div", { style: { display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" } },
-            ...stats.map(s =>
-              h("button", {
-                key: s.key,
-                onClick: () => setFilter(filter === s.key ? "all" : s.key),
-                style: {
-                  flex: "1 1 65px", minWidth: 65, background: filter === s.key ? s.color + "18" : "#131b2e",
-                  border: "1.5px solid " + (filter === s.key ? s.color : "#1c2740"), borderRadius: 10,
-                  padding: "8px 10px", cursor: "pointer", color: s.color, textAlign: "left", transition: "all 0.15s",
-                }
-              },
-                h("div", { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: "clamp(18px, 4vw, 24px)", fontWeight: 700, lineHeight: 1.1 } }, s.value),
-                h("div", { style: { fontSize: 10, color: "#526077", marginTop: 2 } }, s.label)
-              )
-            )
+          h("div",{style:{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}},
+            ...stats.map(s=>h("button",{key:s.k,onClick:()=>setFilter(filter===s.k?"all":s.k),style:{flex:"1 1 65px",minWidth:65,background:filter===s.k?s.c+"18":"#131b2e",border:"1.5px solid "+(filter===s.k?s.c:"#1c2740"),borderRadius:10,padding:"8px 10px",cursor:"pointer",color:s.c,textAlign:"left",transition:"all 0.15s"}},
+              h("div",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:"clamp(18px,4vw,24px)",fontWeight:700,lineHeight:1.1}},s.v),
+              h("div",{style:{fontSize:10,color:"#526077",marginTop:2}},s.l)
+            ))
           ),
 
           // Search
-          h("input", {
-            type: "text", placeholder: "Search country...", value: searchTerm,
-            onChange: e => { setSearchTerm(e.target.value); setSelected(null); },
-            style: { background: "#131b2e", border: "1px solid #1c2740", borderRadius: 8, padding: "7px 12px", color: "#e2e8f0", fontSize: 13, width: "100%", maxWidth: 220, marginBottom: 10, outline: "none" }
-          }),
+          h("input",{type:"text",placeholder:"Search country...",value:search,onChange:e=>{setSearch(e.target.value);setSelected(null);},style:{background:"#131b2e",border:"1px solid #1c2740",borderRadius:8,padding:"7px 12px",color:"#e2e8f0",fontSize:13,width:"100%",maxWidth:220,marginBottom:10,outline:"none"}}),
 
           // Map
-          h("div", { style: { background: "#0d1526", borderRadius: 12, border: "1px solid #1c2740", overflow: "hidden", position: "relative" } },
-            h("svg", { viewBox: "0 0 " + W + " " + H, style: { width: "100%", height: "auto", display: "block" } },
-              h("defs", null,
-                h("radialGradient", { id: "ocean" },
-                  h("stop", { offset: "0%", stopColor: "#111d35" }),
-                  h("stop", { offset: "100%", stopColor: "#0b1120" })
+          h("div",{style:{background:"#0d1526",borderRadius:12,border:"1px solid #1c2740",overflow:"hidden",position:"relative",touchAction:"none"}},
+            h("svg",{ref:svgRef,viewBox:"0 0 "+W+" "+H,style:{width:"100%",height:"auto",display:"block",touchAction:"none"}},
+              h("defs",null,h("radialGradient",{id:"oc"},h("stop",{offset:"0%",stopColor:"#111d35"}),h("stop",{offset:"100%",stopColor:"#0b1120"}))),
+              h("rect",{width:W,height:H,fill:"#0b1120"}),
+              h("g",{ref:gRef,transform:tStr},
+                h("path",{d:path({type:"Sphere"}),fill:"url(#oc)",stroke:"#1c2740",strokeWidth:0.8}),
+                h("path",{d:path(d3.geoGraticule10()),fill:"none",stroke:"#151f35",strokeWidth:0.3}),
+                geo ? geo.features.map((f,i)=>h("path",{key:i,d:path(f),fill:"#1a2744",stroke:"#2a3a5c",strokeWidth:0.4})) : null,
+                // Dots
+                ...["hkOnly","twOnly","both"].flatMap(cat=>
+                  filtered.filter(c=>getCat(c)===cat).map(c=>{
+                    const pos=proj([c.lng,c.lat]);if(!pos)return null;
+                    const[x,y]=pos,col=CAT[cat].color,isSel=selected===c.name,r=isSel?6.5:4.5;
+                    return h("g",{key:c.name,onClick:(e)=>{e.stopPropagation();setSelected(selected===c.name?null:c.name);},style:{cursor:"pointer"}},
+                      h("circle",{cx:x,cy:y,r:r+6,fill:col,opacity:isSel?.25:.1}),
+                      h("circle",{cx:x,cy:y,r,fill:col,stroke:isSel?"#fff":"#0b1120",strokeWidth:isSel?1.5:.6,opacity:.95})
+                    );
+                  })
                 )
-              ),
-              h("path", { d: spherePath, fill: "url(#ocean)", stroke: "#1c2740", strokeWidth: 0.8 }),
-              h("path", { d: graticulePath, fill: "none", stroke: "#151f35", strokeWidth: 0.3 }),
-              ...landPaths,
-              ...dotLayers.filter(Boolean)
+              )
             ),
-            !worldGeo ? h("div", { style: { position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#3b4f6b", fontSize: 13 } }, "Loading world map...") : null
+            !geo?h("div",{style:{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",color:"#3b4f6b",fontSize:13}},"Loading world map..."):null,
+            // Zoom hint
+            h("div",{style:{position:"absolute",bottom:6,right:10,fontSize:9,color:"#334155"}},"Pinch to zoom · Double-tap to reset")
           ),
 
           // Legend
-          h("div", { style: { display: "flex", gap: 14, marginTop: 8, fontSize: 11, color: "#526077", flexWrap: "wrap" } },
-            ...Object.entries(CATEGORIES).map(([k, v]) =>
-              h("div", { key: k, style: { display: "flex", alignItems: "center", gap: 5 } },
-                h("span", { style: { width: 8, height: 8, borderRadius: "50%", background: v.color, display: "inline-block" } }),
-                v.label
-              )
-            ),
-            h("span", { style: { marginLeft: "auto", fontSize: 10 } }, "Tap a dot to see name")
+          h("div",{style:{display:"flex",gap:14,marginTop:8,fontSize:11,color:"#526077",flexWrap:"wrap"}},
+            ...Object.entries(CAT).map(([k,v])=>h("div",{key:k,style:{display:"flex",alignItems:"center",gap:5}},h("span",{style:{width:8,height:8,borderRadius:"50%",background:v.color,display:"inline-block"}}),v.label))
           ),
 
+          // Detail panel
+          sel ? h("div",{style:{marginTop:14,background:"#111827",border:"1px solid "+CAT[selCat].color+"44",borderRadius:12,padding:"16px 18px",position:"relative"}},
+            h("button",{onClick:()=>setSelected(null),style:{position:"absolute",top:10,right:14,background:"none",border:"none",color:"#64748b",fontSize:18,cursor:"pointer"}},"✕"),
+            h("div",{style:{fontSize:18,fontWeight:700,color:CAT[selCat].color,marginBottom:10,fontFamily:"'JetBrains Mono',monospace"}},sel.name),
+            h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}},
+              // HK column
+              h("div",null,
+                h("div",{style:{fontSize:10,color:"#64748b",textTransform:"uppercase",letterSpacing:1,marginBottom:6}},"🇭🇰 HKSAR Passport"),
+                sel.hk ? badge(sel.hv, sel.hs, "HK") : h("div",{style:{color:"#ef4444",fontSize:12,fontWeight:500}},"❌ Visa required")
+              ),
+              // TW column
+              h("div",null,
+                h("div",{style:{fontSize:10,color:"#64748b",textTransform:"uppercase",letterSpacing:1,marginBottom:6}},"🇹🇼 Taiwan Passport"),
+                sel.tw ? badge(sel.tv, sel.ts, "TW") : h("div",{style:{color:"#ef4444",fontSize:12,fontWeight:500}},"❌ Visa required")
+              )
+            )
+          ) : null,
+
           // Country list
-          h("div", { style: { marginTop: 18, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: 3, maxHeight: 280, overflowY: "auto" } },
-            ...filtered.sort((a, b) => a.name.localeCompare(b.name)).map(c => {
-              const cat = getCategory(c), col = CATEGORIES[cat].color;
-              return h("div", {
-                key: c.name,
-                onClick: () => setSelected(selected === c.name ? null : c.name),
-                style: { display: "flex", alignItems: "center", gap: 7, padding: "4px 8px", borderRadius: 5, background: selected === c.name ? col + "15" : "transparent", fontSize: 12, cursor: "pointer" }
-              },
-                h("span", { style: { width: 6, height: 6, borderRadius: "50%", background: col, flexShrink: 0 } }),
-                h("span", { style: { color: "#b0bdd0" } }, c.name)
+          h("div",{style:{marginTop:18,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(170px,1fr))",gap:3,maxHeight:280,overflowY:"auto"}},
+            ...filtered.sort((a,b)=>a.name.localeCompare(b.name)).map(c=>{
+              const cat=getCat(c),col=CAT[cat].color;
+              return h("div",{key:c.name,onClick:()=>setSelected(selected===c.name?null:c.name),style:{display:"flex",alignItems:"center",gap:7,padding:"4px 8px",borderRadius:5,background:selected===c.name?col+"15":"transparent",fontSize:12,cursor:"pointer"}},
+                h("span",{style:{width:6,height:6,borderRadius:"50%",background:col,flexShrink:0}}),
+                h("span",{style:{color:"#b0bdd0"}},c.name)
               );
             })
           ),
 
-          // Footer
-          h("p", { style: { fontSize: 10, color: "#2a3650", marginTop: 18, lineHeight: 1.5 } },
-            "Sources: HK Immigration Dept (2026-02-02) · Taiwan BOCA (2026-03-04). Includes visa-free, VOA & eVisa. Verify before travel."
-          )
+          h("p",{style:{fontSize:10,color:"#2a3650",marginTop:18,lineHeight:1.5}},"Sources: HK Immigration Dept (2026-02-02) · Taiwan BOCA (2026-03-04). Includes visa-free, VOA & eVisa. Verify before travel.")
         )
       );
     }
