@@ -362,30 +362,38 @@
         );
       }
 
-      return h("div",{style:{minHeight:"100vh",background:"#0b1120",color:"#e2e8f0",fontFamily:"'DM Sans',sans-serif",padding:"20px 12px"}},
+      // Collapsible list state
+      const [listOpen, setListOpen] = useState(false);
+
+      return h("div",{style:{minHeight:"100vh",background:"#0b1120",color:"#e2e8f0",fontFamily:"'DM Sans',sans-serif",padding:"10px 8px 0"}},
         h("div",{style:{maxWidth:960,margin:"0 auto"}},
-          h("h1",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:"clamp(17px,4vw,26px)",fontWeight:700,margin:"0 0 2px",color:"#34d399"}},"🌏 Visa-Free Travel Overlap"),
-          h("p",{style:{fontSize:12,color:"#475569",margin:"0 0 14px"}},"HKSAR Passport × Taiwan Passport — visa-free, VOA & eVisa"),
 
-          // Stats
-          h("div",{style:{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}},
-            ...stats.map(s=>h("button",{key:s.k,onClick:()=>setFilter(filter===s.k?"all":s.k),style:{flex:"1 1 65px",minWidth:65,background:filter===s.k?s.c+"18":"#131b2e",border:"1.5px solid "+(filter===s.k?s.c:"#1c2740"),borderRadius:10,padding:"8px 10px",cursor:"pointer",color:s.c,textAlign:"left",transition:"all 0.15s"}},
-              h("div",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:"clamp(18px,4vw,24px)",fontWeight:700,lineHeight:1.1}},s.v),
-              h("div",{style:{fontSize:10,color:"#526077",marginTop:2}},s.l)
-            ))
+          // Compact header row
+          h("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}},
+            h("div",null,
+              h("h1",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:"clamp(15px,3.5vw,22px)",fontWeight:700,margin:0,color:"#34d399",lineHeight:1.2}},"🌏 Visa-Free Overlap"),
+              h("p",{style:{fontSize:10,color:"#475569",margin:0}},"HK × Taiwan Passport")
+            ),
+            // Inline stats
+            h("div",{style:{display:"flex",gap:4}},
+              ...stats.map(s=>h("button",{key:s.k,onClick:()=>setFilter(filter===s.k?"all":s.k),style:{background:filter===s.k?s.c+"18":"#131b2e",border:"1px solid "+(filter===s.k?s.c:"#1c2740"),borderRadius:8,padding:"4px 8px",cursor:"pointer",color:s.c,textAlign:"center",transition:"all 0.15s",minWidth:0}},
+                h("div",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:14,fontWeight:700,lineHeight:1.1}},s.v),
+                h("div",{style:{fontSize:8,color:"#526077",marginTop:1}},s.l)
+              ))
+            )
           ),
 
-          // Search
-          h("input",{type:"text",placeholder:"Search country...",value:search,onChange:e=>{setSearch(e.target.value);setSelected(null);},style:{background:"#131b2e",border:"1px solid #1c2740",borderRadius:8,padding:"7px 12px",color:"#e2e8f0",fontSize:13,width:"100%",maxWidth:220,marginBottom:10,outline:"none"}}),
-
-          // Region quick-jump
-          h("div",{style:{display:"flex",gap:4,marginBottom:10,flexWrap:"wrap"}},
-            ...REGIONS.map(r=>h("button",{key:r.label,onClick:()=>zoomToRegion(r),style:{background:"#131b2e",border:"1px solid #1c2740",borderRadius:6,padding:"4px 10px",color:"#94a3b8",fontSize:11,cursor:"pointer",transition:"all 0.15s",whiteSpace:"nowrap"}},r.label))
+          // Search + region row
+          h("div",{style:{display:"flex",gap:6,marginBottom:6,alignItems:"center",flexWrap:"wrap"}},
+            h("input",{type:"text",placeholder:"Search...",value:search,onChange:e=>{setSearch(e.target.value);setSelected(null);},style:{background:"#131b2e",border:"1px solid #1c2740",borderRadius:6,padding:"5px 10px",color:"#e2e8f0",fontSize:12,width:130,outline:"none",flexShrink:0}}),
+            h("div",{style:{display:"flex",gap:3,flexWrap:"wrap",flex:1}},
+              ...REGIONS.map(r=>h("button",{key:r.label,onClick:()=>zoomToRegion(r),style:{background:"#131b2e",border:"1px solid #1c2740",borderRadius:5,padding:"3px 7px",color:"#94a3b8",fontSize:10,cursor:"pointer",whiteSpace:"nowrap",lineHeight:1.3}},r.label))
+            )
           ),
 
-          // Map
-          h("div",{style:{background:"#0d1526",borderRadius:12,border:"1px solid #1c2740",overflow:"hidden",position:"relative",touchAction:"none",minHeight:"55vw"}},
-            h("svg",{ref:svgRef,viewBox:"0 0 "+W+" "+H,style:{width:"100%",height:"auto",display:"block",touchAction:"none",minHeight:"55vw"}},
+          // Map — fills available viewport
+          h("div",{style:{background:"#0d1526",borderRadius:10,border:"1px solid #1c2740",overflow:"hidden",position:"relative",touchAction:"none",height:"calc(100vh - 220px)",minHeight:300,maxHeight:700}},
+            h("svg",{ref:svgRef,viewBox:"0 0 "+W+" "+H,style:{width:"100%",height:"100%",display:"block",touchAction:"none"}},
               h("defs",null,h("radialGradient",{id:"oc"},h("stop",{offset:"0%",stopColor:"#111d35"}),h("stop",{offset:"100%",stopColor:"#0b1120"}))),
               h("rect",{width:W,height:H,fill:"#0b1120"}),
               h("g",{ref:gRef,transform:tStr},
@@ -410,45 +418,52 @@
               )
             ),
             !geo?h("div",{style:{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",color:"#3b4f6b",fontSize:13}},"Loading world map..."):null,
+
+            // Legend overlay on map
+            h("div",{style:{position:"absolute",top:8,left:8,display:"flex",gap:8,fontSize:10,color:"#64748b",background:"#0b112099",borderRadius:6,padding:"4px 8px",backdropFilter:"blur(4px)"}},
+              ...Object.entries(CAT).map(([k,v])=>h("div",{key:k,style:{display:"flex",alignItems:"center",gap:4}},h("span",{style:{width:6,height:6,borderRadius:"50%",background:v.color,display:"inline-block"}}),v.label))
+            ),
+
             // Zoom hint
-            h("div",{style:{position:"absolute",bottom:6,right:10,fontSize:9,color:"#334155"}},"Pinch to zoom · Double-tap to reset")
-          ),
+            h("div",{style:{position:"absolute",bottom:6,right:10,fontSize:9,color:"#334155"}},"Pinch to zoom · Double-tap to reset"),
 
-          // Legend
-          h("div",{style:{display:"flex",gap:14,marginTop:8,fontSize:11,color:"#526077",flexWrap:"wrap"}},
-            ...Object.entries(CAT).map(([k,v])=>h("div",{key:k,style:{display:"flex",alignItems:"center",gap:5}},h("span",{style:{width:8,height:8,borderRadius:"50%",background:v.color,display:"inline-block"}}),v.label))
-          ),
-
-          // Detail panel
-          sel ? h("div",{style:{marginTop:14,background:"#111827",border:"1px solid "+CAT[selCat].color+"44",borderRadius:12,padding:"16px 18px",position:"relative"}},
-            h("button",{onClick:()=>setSelected(null),style:{position:"absolute",top:10,right:14,background:"none",border:"none",color:"#64748b",fontSize:18,cursor:"pointer"}},"✕"),
-            h("div",{style:{fontSize:18,fontWeight:700,color:CAT[selCat].color,marginBottom:10,fontFamily:"'JetBrains Mono',monospace"}},sel.name),
-            h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}},
-              // HK column
-              h("div",null,
-                h("div",{style:{fontSize:10,color:"#64748b",textTransform:"uppercase",letterSpacing:1,marginBottom:6}},"🇭🇰 HKSAR Passport"),
-                sel.hk ? badge(sel.hv, sel.hs, "HK") : h("div",{style:{color:"#ef4444",fontSize:12,fontWeight:500}},"❌ Visa required")
+            // Detail panel — bottom overlay on map
+            sel ? h("div",{style:{position:"absolute",bottom:0,left:0,right:0,background:"#111827ee",backdropFilter:"blur(8px)",borderTop:"1px solid "+CAT[selCat].color+"55",padding:"12px 16px",animation:"slideUp 0.2s ease-out"}},
+              h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}},
+                h("div",{style:{fontSize:16,fontWeight:700,color:CAT[selCat].color,fontFamily:"'JetBrains Mono',monospace"}},sel.name),
+                h("button",{onClick:()=>setSelected(null),style:{background:"none",border:"none",color:"#64748b",fontSize:16,cursor:"pointer",padding:"0 4px"}},"✕")
               ),
-              // TW column
-              h("div",null,
-                h("div",{style:{fontSize:10,color:"#64748b",textTransform:"uppercase",letterSpacing:1,marginBottom:6}},"🇹🇼 Taiwan Passport"),
-                sel.tw ? badge(sel.tv, sel.ts, "TW") : h("div",{style:{color:"#ef4444",fontSize:12,fontWeight:500}},"❌ Visa required")
+              h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}},
+                h("div",null,
+                  h("div",{style:{fontSize:9,color:"#64748b",textTransform:"uppercase",letterSpacing:1,marginBottom:4}},"🇭🇰 HKSAR"),
+                  sel.hk ? badge(sel.hv, sel.hs, "HK") : h("div",{style:{color:"#ef4444",fontSize:11,fontWeight:500}},"❌ Visa required")
+                ),
+                h("div",null,
+                  h("div",{style:{fontSize:9,color:"#64748b",textTransform:"uppercase",letterSpacing:1,marginBottom:4}},"🇹🇼 Taiwan"),
+                  sel.tw ? badge(sel.tv, sel.ts, "TW") : h("div",{style:{color:"#ef4444",fontSize:11,fontWeight:500}},"❌ Visa required")
+                )
               )
-            )
-          ) : null,
-
-          // Country list
-          h("div",{style:{marginTop:18,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(170px,1fr))",gap:3,maxHeight:280,overflowY:"auto"}},
-            ...filtered.sort((a,b)=>a.name.localeCompare(b.name)).map(c=>{
-              const cat=getCat(c),col=CAT[cat].color;
-              return h("div",{key:c.name,onClick:()=>{const newSel=selected===c.name?null:c.name;setSelected(newSel);if(newSel){const co=countries.find(x=>x.name===newSel);if(co)zoomToCountry(co);}},style:{display:"flex",alignItems:"center",gap:7,padding:"4px 8px",borderRadius:5,background:selected===c.name?col+"15":"transparent",fontSize:12,cursor:"pointer"}},
-                h("span",{style:{width:6,height:6,borderRadius:"50%",background:col,flexShrink:0}}),
-                h("span",{style:{color:"#b0bdd0"}},c.name)
-              );
-            })
+            ) : null
           ),
 
-          h("p",{style:{fontSize:10,color:"#2a3650",marginTop:18,lineHeight:1.5}},"Sources: HK Immigration Dept (2026-02-02) · Taiwan BOCA (2026-03-04). Includes visa-free, VOA & eVisa. Verify before travel.")
+          // Collapsible country list
+          h("div",{style:{marginTop:10}},
+            h("button",{onClick:()=>setListOpen(!listOpen),style:{background:"#131b2e",border:"1px solid #1c2740",borderRadius:8,padding:"8px 14px",color:"#94a3b8",fontSize:12,cursor:"pointer",width:"100%",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"}},
+              h("span",null,"📋 Country list ("+filtered.length+")"),
+              h("span",{style:{fontSize:14,transition:"transform 0.2s",transform:listOpen?"rotate(180deg)":"rotate(0)"}},"▾")
+            ),
+            listOpen ? h("div",{style:{marginTop:6,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:2,maxHeight:250,overflowY:"auto",background:"#0d1526",borderRadius:8,border:"1px solid #1c2740",padding:6}},
+              ...filtered.sort((a,b)=>a.name.localeCompare(b.name)).map(c=>{
+                const cat=getCat(c),col=CAT[cat].color;
+                return h("div",{key:c.name,onClick:()=>{const newSel=selected===c.name?null:c.name;setSelected(newSel);if(newSel){const co=countries.find(x=>x.name===newSel);if(co)zoomToCountry(co);}},style:{display:"flex",alignItems:"center",gap:6,padding:"4px 6px",borderRadius:4,background:selected===c.name?col+"15":"transparent",fontSize:11,cursor:"pointer"}},
+                  h("span",{style:{width:5,height:5,borderRadius:"50%",background:col,flexShrink:0}}),
+                  h("span",{style:{color:"#b0bdd0"}},c.name)
+                );
+              })
+            ) : null
+          ),
+
+          h("p",{style:{fontSize:9,color:"#2a3650",marginTop:12,lineHeight:1.4,paddingBottom:16}},"Sources: HK Immigration Dept (2026-02-02) · Taiwan BOCA (2026-03-04). Includes visa-free, VOA & eVisa. Verify before travel.")
         )
       );
     }
