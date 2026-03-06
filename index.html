@@ -234,6 +234,19 @@
 
     const TOPO = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
+    // Regions for quick-jump zoom
+    const REGIONS = [
+      { label:"🌍 World",   lat:0, lng:0, z:1 },
+      { label:"Europe",     lat:50, lng:15, z:3.5 },
+      { label:"SE Asia",    lat:10, lng:110, z:3 },
+      { label:"E Asia",     lat:35, lng:120, z:2.8 },
+      { label:"Middle East", lat:28, lng:45, z:3.2 },
+      { label:"Africa",     lat:2, lng:22, z:2 },
+      { label:"Caribbean",  lat:17, lng:-65, z:4 },
+      { label:"S America",  lat:-20, lng:-60, z:2 },
+      { label:"Pacific",    lat:-5, lng:160, z:2.5 },
+    ];
+
     function App() {
       const [filter, setFilter] = useState("all");
       const [selected, setSelected] = useState(null);
@@ -242,8 +255,9 @@
       const [transform, setTransform] = useState({ k:1, x:0, y:0 });
       const svgRef = useRef(null);
       const gRef = useRef(null);
+      const zoomRef = useRef(null);
 
-      const W = 960, H = 500;
+      const W = 960, H = 620;
 
       // Load topo
       useEffect(() => {
@@ -261,19 +275,55 @@
         if (!svgRef.current) return;
         const svg = d3.select(svgRef.current);
         const zoom = d3.zoom()
-          .scaleExtent([1, 8])
+          .scaleExtent([1, 12])
           .on("zoom", (e) => {
             setTransform({ k: e.transform.k, x: e.transform.x, y: e.transform.y });
           });
         svg.call(zoom);
-        // double-tap to reset
+        zoomRef.current = zoom;
         svg.on("dblclick.zoom", () => {
           svg.transition().duration(400).call(zoom.transform, d3.zoomIdentity);
         });
         return () => { svg.on(".zoom", null); };
       }, []);
 
-      const proj = useMemo(() => d3.geoNaturalEarth1().scale(160).translate([W/2, H/2]), []);
+      // Zoom to a specific region
+      const zoomToRegion = useCallback((region) => {
+        if (!svgRef.current || !zoomRef.current) return;
+        const svg = d3.select(svgRef.current);
+        if (region.z === 1) {
+          svg.transition().duration(500).call(zoomRef.current.transform, d3.zoomIdentity);
+          return;
+        }
+        const pos = proj([region.lng, region.lat]);
+        if (!pos) return;
+        const [cx, cy] = pos;
+        const k = region.z;
+        const tx = W / 2 - cx * k;
+        const ty = H / 2 - cy * k;
+        svg.transition().duration(500).call(
+          zoomRef.current.transform,
+          d3.zoomIdentity.translate(tx, ty).scale(k)
+        );
+      }, []);
+
+      // Zoom to a specific country when selected from the list
+      const zoomToCountry = useCallback((country) => {
+        if (!svgRef.current || !zoomRef.current) return;
+        const svg = d3.select(svgRef.current);
+        const pos = proj([country.lng, country.lat]);
+        if (!pos) return;
+        const [cx, cy] = pos;
+        const k = 5;
+        const tx = W / 2 - cx * k;
+        const ty = H / 2 - cy * k;
+        svg.transition().duration(500).call(
+          zoomRef.current.transform,
+          d3.zoomIdentity.translate(tx, ty).scale(k)
+        );
+      }, []);
+
+      const proj = useMemo(() => d3.geoNaturalEarth1().scale(195).translate([W/2, H/2]), []);
       const path = useMemo(() => d3.geoPath().projection(proj), [proj]);
 
       const filtered = useMemo(() => {
@@ -328,23 +378,32 @@
           // Search
           h("input",{type:"text",placeholder:"Search country...",value:search,onChange:e=>{setSearch(e.target.value);setSelected(null);},style:{background:"#131b2e",border:"1px solid #1c2740",borderRadius:8,padding:"7px 12px",color:"#e2e8f0",fontSize:13,width:"100%",maxWidth:220,marginBottom:10,outline:"none"}}),
 
+          // Region quick-jump
+          h("div",{style:{display:"flex",gap:4,marginBottom:10,flexWrap:"wrap"}},
+            ...REGIONS.map(r=>h("button",{key:r.label,onClick:()=>zoomToRegion(r),style:{background:"#131b2e",border:"1px solid #1c2740",borderRadius:6,padding:"4px 10px",color:"#94a3b8",fontSize:11,cursor:"pointer",transition:"all 0.15s",whiteSpace:"nowrap"}},r.label))
+          ),
+
           // Map
-          h("div",{style:{background:"#0d1526",borderRadius:12,border:"1px solid #1c2740",overflow:"hidden",position:"relative",touchAction:"none"}},
-            h("svg",{ref:svgRef,viewBox:"0 0 "+W+" "+H,style:{width:"100%",height:"auto",display:"block",touchAction:"none"}},
+          h("div",{style:{background:"#0d1526",borderRadius:12,border:"1px solid #1c2740",overflow:"hidden",position:"relative",touchAction:"none",minHeight:"55vw"}},
+            h("svg",{ref:svgRef,viewBox:"0 0 "+W+" "+H,style:{width:"100%",height:"auto",display:"block",touchAction:"none",minHeight:"55vw"}},
               h("defs",null,h("radialGradient",{id:"oc"},h("stop",{offset:"0%",stopColor:"#111d35"}),h("stop",{offset:"100%",stopColor:"#0b1120"}))),
               h("rect",{width:W,height:H,fill:"#0b1120"}),
               h("g",{ref:gRef,transform:tStr},
                 h("path",{d:path({type:"Sphere"}),fill:"url(#oc)",stroke:"#1c2740",strokeWidth:0.8}),
                 h("path",{d:path(d3.geoGraticule10()),fill:"none",stroke:"#151f35",strokeWidth:0.3}),
                 geo ? geo.features.map((f,i)=>h("path",{key:i,d:path(f),fill:"#1a2744",stroke:"#2a3a5c",strokeWidth:0.4})) : null,
-                // Dots
+                // Dots — scale inversely with zoom
                 ...["hkOnly","twOnly","both"].flatMap(cat=>
                   filtered.filter(c=>getCat(c)===cat).map(c=>{
                     const pos=proj([c.lng,c.lat]);if(!pos)return null;
-                    const[x,y]=pos,col=CAT[cat].color,isSel=selected===c.name,r=isSel?6.5:4.5;
+                    const[x,y]=pos,col=CAT[cat].color,isSel=selected===c.name;
+                    const invScale = 1 / Math.sqrt(transform.k);
+                    const r = (isSel ? 8 : 5.5) * invScale;
+                    const sw = (isSel ? 1.5 : 0.6) * invScale;
                     return h("g",{key:c.name,onClick:(e)=>{e.stopPropagation();setSelected(selected===c.name?null:c.name);},style:{cursor:"pointer"}},
-                      h("circle",{cx:x,cy:y,r:r+6,fill:col,opacity:isSel?.25:.1}),
-                      h("circle",{cx:x,cy:y,r,fill:col,stroke:isSel?"#fff":"#0b1120",strokeWidth:isSel?1.5:.6,opacity:.95})
+                      h("circle",{cx:x,cy:y,r:r+8*invScale,fill:col,opacity:isSel?.25:.1}),
+                      h("circle",{cx:x,cy:y,r,fill:col,stroke:isSel?"#fff":"#0b1120",strokeWidth:sw,opacity:.95}),
+                      isSel && transform.k > 2 ? h("text",{x:x+r+4*invScale,y:y+4*invScale,fill:"#f1f5f9",fontSize:11*invScale,fontFamily:"'DM Sans',sans-serif",fontWeight:600},c.name) : null
                     );
                   })
                 )
@@ -382,7 +441,7 @@
           h("div",{style:{marginTop:18,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(170px,1fr))",gap:3,maxHeight:280,overflowY:"auto"}},
             ...filtered.sort((a,b)=>a.name.localeCompare(b.name)).map(c=>{
               const cat=getCat(c),col=CAT[cat].color;
-              return h("div",{key:c.name,onClick:()=>setSelected(selected===c.name?null:c.name),style:{display:"flex",alignItems:"center",gap:7,padding:"4px 8px",borderRadius:5,background:selected===c.name?col+"15":"transparent",fontSize:12,cursor:"pointer"}},
+              return h("div",{key:c.name,onClick:()=>{const newSel=selected===c.name?null:c.name;setSelected(newSel);if(newSel){const co=countries.find(x=>x.name===newSel);if(co)zoomToCountry(co);}},style:{display:"flex",alignItems:"center",gap:7,padding:"4px 8px",borderRadius:5,background:selected===c.name?col+"15":"transparent",fontSize:12,cursor:"pointer"}},
                 h("span",{style:{width:6,height:6,borderRadius:"50%",background:col,flexShrink:0}}),
                 h("span",{style:{color:"#b0bdd0"}},c.name)
               );
