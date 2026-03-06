@@ -365,34 +365,33 @@
       // Collapsible list state
       const [listOpen, setListOpen] = useState(false);
 
-      return h("div",{style:{minHeight:"100vh",background:"#0b1120",color:"#e2e8f0",fontFamily:"'DM Sans',sans-serif",padding:"10px 8px 0"}},
+      return h("div",{style:{minHeight:"100vh",background:"#0b1120",color:"#e2e8f0",fontFamily:"'DM Sans',sans-serif",padding:"8px 8px 0"}},
         h("div",{style:{maxWidth:960,margin:"0 auto"}},
 
-          // Compact header row
-          h("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}},
-            h("div",null,
-              h("h1",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:"clamp(15px,3.5vw,22px)",fontWeight:700,margin:0,color:"#34d399",lineHeight:1.2}},"🌏 Visa-Free Overlap"),
-              h("p",{style:{fontSize:10,color:"#475569",margin:0}},"HK × Taiwan Passport")
-            ),
-            // Inline stats
-            h("div",{style:{display:"flex",gap:4}},
-              ...stats.map(s=>h("button",{key:s.k,onClick:()=>setFilter(filter===s.k?"all":s.k),style:{background:filter===s.k?s.c+"18":"#131b2e",border:"1px solid "+(filter===s.k?s.c:"#1c2740"),borderRadius:8,padding:"4px 8px",cursor:"pointer",color:s.c,textAlign:"center",transition:"all 0.15s",minWidth:0}},
-                h("div",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:14,fontWeight:700,lineHeight:1.1}},s.v),
-                h("div",{style:{fontSize:8,color:"#526077",marginTop:1}},s.l)
-              ))
-            )
+          // Row 1: Title
+          h("div",{style:{marginBottom:4}},
+            h("div",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:16,fontWeight:700,color:"#34d399"}},"🌏 Visa-Free Overlap"),
+            h("div",{style:{fontSize:10,color:"#475569"}},"HKSAR Passport × Taiwan Passport")
           ),
 
-          // Search + region row
-          h("div",{style:{display:"flex",gap:6,marginBottom:6,alignItems:"center",flexWrap:"wrap"}},
-            h("input",{type:"text",placeholder:"Search...",value:search,onChange:e=>{setSearch(e.target.value);setSelected(null);},style:{background:"#131b2e",border:"1px solid #1c2740",borderRadius:6,padding:"5px 10px",color:"#e2e8f0",fontSize:12,width:130,outline:"none",flexShrink:0}}),
-            h("div",{style:{display:"flex",gap:3,flexWrap:"wrap",flex:1}},
-              ...REGIONS.map(r=>h("button",{key:r.label,onClick:()=>zoomToRegion(r),style:{background:"#131b2e",border:"1px solid #1c2740",borderRadius:5,padding:"3px 7px",color:"#94a3b8",fontSize:10,cursor:"pointer",whiteSpace:"nowrap",lineHeight:1.3}},r.label))
-            )
+          // Row 2: Stats (full width)
+          h("div",{style:{display:"flex",gap:4,marginBottom:6}},
+            ...stats.map(s=>h("button",{key:s.k,onClick:()=>setFilter(filter===s.k?"all":s.k),style:{flex:1,background:filter===s.k?s.c+"20":"#131b2e",border:"1.5px solid "+(filter===s.k?s.c:"#1c2740"),borderRadius:8,padding:"6px 4px",cursor:"pointer",color:s.c,textAlign:"center"}},
+              h("div",{style:{fontFamily:"'JetBrains Mono',monospace",fontSize:18,fontWeight:700,lineHeight:1}},s.v),
+              h("div",{style:{fontSize:9,color:"#526077",marginTop:2}},s.l)
+            ))
           ),
 
-          // Map — fills available viewport
-          h("div",{style:{background:"#0d1526",borderRadius:10,border:"1px solid #1c2740",overflow:"hidden",position:"relative",touchAction:"none",height:"calc(100vh - 220px)",minHeight:300,maxHeight:700}},
+          // Row 2: Region quick-jump (single scrollable row)
+          h("div",{style:{display:"flex",gap:4,marginBottom:6,overflowX:"auto",WebkitOverflowScrolling:"touch",scrollbarWidth:"none",msOverflowStyle:"none"}},
+            ...REGIONS.map(r=>h("button",{key:r.label,onClick:()=>zoomToRegion(r),style:{background:"#131b2e",border:"1px solid #1c2740",borderRadius:5,padding:"4px 9px",color:"#94a3b8",fontSize:11,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}},r.label))
+          ),
+
+          // Row 3: Search
+          h("input",{type:"text",placeholder:"Search country...",value:search,onChange:e=>{setSearch(e.target.value);setSelected(null);},style:{background:"#131b2e",border:"1px solid #1c2740",borderRadius:6,padding:"6px 10px",color:"#e2e8f0",fontSize:12,width:"100%",marginBottom:6,outline:"none"}}),
+
+          // Map — fills remaining viewport
+          h("div",{style:{background:"#0d1526",borderRadius:10,border:"1px solid #1c2740",overflow:"hidden",position:"relative",touchAction:"none",height:"calc(100vh - 230px)",minHeight:300,maxHeight:750}},
             h("svg",{ref:svgRef,viewBox:"0 0 "+W+" "+H,style:{width:"100%",height:"100%",display:"block",touchAction:"none"}},
               h("defs",null,h("radialGradient",{id:"oc"},h("stop",{offset:"0%",stopColor:"#111d35"}),h("stop",{offset:"100%",stopColor:"#0b1120"}))),
               h("rect",{width:W,height:H,fill:"#0b1120"}),
